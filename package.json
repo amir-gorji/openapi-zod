@@ -1,0 +1,10 @@
+{
+  "name": "swagger-zod-cli",
+  "version": "1.0.0",
+  "type": "module",
+  "bin": { "swagger-zod": "./index.js" },
+  "dependencies": {
+    "commander": "^12",
+    "inquirer": "^9"
+  }
+}

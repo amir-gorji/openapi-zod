@@ -10,6 +10,8 @@ Point at a spec, pick an endpoint, get a correct Zod v4 schema on disk. No hallu
 
 LLMs infer Zod schemas incorrectly — wrong field names, wrong nesting, subtle type bugs that only surface at runtime. This tool bypasses the model entirely for codegen: schema generation is deterministic, spec-driven, and written directly to disk. The LLM only acts as an orchestrator; it never touches the schema content.
 
+I addressed a problem I had myself. One may find it unnecessary, and that's fair.
+
 ## Schema guarantees
 
 - **Deterministic** — same spec + endpoint → identical output, every time. No hallucination, no typos, no missed fields.

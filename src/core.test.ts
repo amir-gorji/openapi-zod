@@ -4,8 +4,8 @@ import {
   isMethodKey, extractApis, resolveRef, resolveSchema,
   generateZodCode, toPascalCase, deriveSchemaName,
   extractSuccessSchema, expandPath, buildAndWrite,
-} from './core.ts';
-import type { OpenAPISpec } from './core.ts';
+} from './core.js';
+import type { OpenAPISpec } from './core.js';
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 

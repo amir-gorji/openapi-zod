@@ -1,5 +1,5 @@
 {
-  "name": "openapi-zod",
+  "name": "openapi-zod-mcp",
   "version": "1.0.0",
   "description": "Deterministic, token-free Zod v4 schema generation from OpenAPI specs — no LLM hallucinations",
   "type": "module",
@@ -39,6 +39,6 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/amir-gorji/openapi-zod.git"
+    "url": "git+https://github.com/amir-gorji/openapi-zod-mcp.git"
   }
 }

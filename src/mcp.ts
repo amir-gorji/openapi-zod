@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { fetchSpec, extractApis, generateZodCode, deriveSchemaName, extractSuccessSchema, buildAndWrite, expandPath } from './core.js';
 import path from 'path';
 
-const server = new McpServer({ name: 'openapi-zod', version: '1.0.0' });
+const server = new McpServer({ name: 'openapi-zod-mcp', version: '1.0.0' });
 
 server.tool(
   'list_endpoints',

@@ -1,4 +1,4 @@
-# openapi-zod
+# openapi-zod-mcp
 
 Point at a spec, pick an endpoint, get a correct Zod v4 schema on disk. No hallucinations.
 
@@ -25,8 +25,8 @@ LLMs infer Zod schemas incorrectly — wrong field names, wrong nesting, subtle 
 Clone the repo and build:
 
 ```bash
-git clone https://github.com/amir-gorji/openapi-zod.git
-cd openapi-zod
+git clone https://github.com/amir-gorji/openapi-zod-mcp.git
+cd openapi-zod-mcp
 npm install
 npm run build
 ```
@@ -41,7 +41,7 @@ node dist/index.js --url https://petstore3.swagger.io/api/v3/openapi.json --api 
 node dist/mcp.js
 ```
 
-For MCP config, replace `"npx", "openapi-zod-mcp"` with `"node", "/absolute/path/to/openapi-zod/dist/mcp.js"`.
+For MCP config, replace `"npx", "openapi-zod-mcp"` with `"node", "/absolute/path/to/openapi-zod-mcp/dist/mcp.js"`.
 
 ---
 
@@ -55,7 +55,7 @@ The MCP server integrates directly with Claude Desktop, VS Code Copilot, and any
 ```json
 {
   "servers": {
-    "openapi-zod": {
+    "openapi-zod-mcp": {
       "type": "stdio",
       "command": "npx",
       "args": ["openapi-zod-mcp"]
@@ -68,7 +68,7 @@ The MCP server integrates directly with Claude Desktop, VS Code Copilot, and any
 ```json
 {
   "mcpServers": {
-    "openapi-zod": {
+    "openapi-zod-mcp": {
       "command": "npx",
       "args": ["openapi-zod-mcp"]
     }

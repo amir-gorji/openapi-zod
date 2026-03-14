@@ -2,7 +2,7 @@
 
 Point at a spec, pick an endpoint, get a correct Zod v4 schema on disk. No hallucinations.
 
-![how it works](assets/how-it-works.gif)
+<img src="assets/how-it-works.gif" width="600" alt="how it works">
 
 *Recorded with a half-full context window on a large project, using a weaker model — the agent is already under pressure.*
 

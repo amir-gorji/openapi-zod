@@ -2,38 +2,89 @@ import fs from 'fs';
 import path from 'path';
 import os from 'os';
 
-export async function fetchSpec(url) {
-  let res;
+export interface SchemaObject {
+  $ref?: string;
+  type?: string | string[];
+  properties?: Record<string, SchemaObject>;
+  items?: SchemaObject;
+  required?: string[];
+  nullable?: boolean;
+  enum?: unknown[];
+  allOf?: SchemaObject[];
+  anyOf?: SchemaObject[];
+  oneOf?: SchemaObject[];
+  format?: string;
+  description?: string;
+  responses?: Record<string, ResponseObject>;
+  operationId?: string;
+  [key: string]: unknown;
+}
+
+export interface ResponseObject {
+  $ref?: string;
+  content?: Record<string, { schema?: SchemaObject }>;
+  description?: string;
+}
+
+export interface OperationObject {
+  operationId?: string;
+  responses?: Record<string, ResponseObject>;
+  parameters?: unknown[];
+  [key: string]: unknown;
+}
+
+export interface OpenAPISpec {
+  swagger?: string;
+  openapi?: string;
+  paths?: Record<string, Record<string, unknown>>;
+  components?: {
+    schemas?: Record<string, SchemaObject>;
+    responses?: Record<string, ResponseObject>;
+    [key: string]: unknown;
+  };
+  [key: string]: unknown;
+}
+
+export interface ApiEntry {
+  index: number;
+  method: string;
+  path: string;
+  operation: OperationObject;
+}
+
+export async function fetchSpec(url: string): Promise<OpenAPISpec> {
+  let res: Response;
   try {
     res = await fetch(url);
   } catch (e) {
-    throw new Error(`Failed to fetch spec: ${e.message}`);
+    throw new Error(`Failed to fetch spec: ${(e as Error).message}`);
   }
   if (!res.ok) throw new Error(`HTTP ${res.status} fetching spec from ${url}`);
-  let json;
+  let json: unknown;
   try {
     json = await res.json();
   } catch (e) {
-    throw new Error(`Response is not valid JSON: ${e.message}`);
+    throw new Error(`Response is not valid JSON: ${(e as Error).message}`);
   }
-  if (json.swagger === '2.0') {
+  const spec = json as OpenAPISpec;
+  if (spec.swagger === '2.0') {
     throw new Error('Swagger 2.0 specs are not supported. Please use an OpenAPI 3.x spec.');
   }
-  return json;
+  return spec;
 }
 
 export const NON_METHOD_KEYS = new Set([
   'parameters', 'summary', 'description', 'servers', 'x-*',
 ]);
 
-export function isMethodKey(key) {
+export function isMethodKey(key: string): boolean {
   if (NON_METHOD_KEYS.has(key)) return false;
   if (key.startsWith('x-')) return false;
   return ['get', 'post', 'put', 'patch', 'delete', 'options', 'head', 'trace'].includes(key);
 }
 
-export function extractApis(spec) {
-  const apis = [];
+export function extractApis(spec: OpenAPISpec): ApiEntry[] {
+  const apis: ApiEntry[] = [];
   let index = 1;
   const paths = spec.paths ?? {};
   const sortedPaths = Object.keys(paths).sort();
@@ -41,29 +92,29 @@ export function extractApis(spec) {
     const pathItem = paths[p];
     const methods = Object.keys(pathItem).filter(isMethodKey).sort();
     for (const method of methods) {
-      apis.push({ index, method, path: p, operation: pathItem[method] });
+      apis.push({ index, method, path: p, operation: pathItem[method] as OperationObject });
       index++;
     }
   }
   return apis;
 }
 
-export function resolveRef(ref, spec) {
+export function resolveRef(ref: string, spec: OpenAPISpec): SchemaObject | null {
   if (!ref.startsWith('#/')) {
     console.warn(`Warning: external $ref "${ref}" not supported — emitting z.unknown()`);
     return null;
   }
   const parts = ref.slice(2).split('/');
-  let node = spec;
+  let node: unknown = spec;
   for (const part of parts) {
     const decoded = part.replace(/~1/g, '/').replace(/~0/g, '~');
     if (node == null || typeof node !== 'object') return null;
-    node = node[decoded];
+    node = (node as Record<string, unknown>)[decoded];
   }
-  return node ?? null;
+  return (node ?? null) as SchemaObject | null;
 }
 
-export function resolveSchema(schema, spec, visited = new Set()) {
+export function resolveSchema(schema: SchemaObject, spec: OpenAPISpec, visited: Set<string> = new Set()): SchemaObject | null {
   if (!schema || typeof schema !== 'object') return schema;
   if (!schema.$ref) return schema;
   const ref = schema.$ref;
@@ -74,17 +125,17 @@ export function resolveSchema(schema, spec, visited = new Set()) {
   return resolveSchema(resolved, spec, visited);
 }
 
-function ind(n) {
+function ind(n: number): string {
   return ' '.repeat(n);
 }
 
-function generateObject(schema, spec, indent, visited) {
+function generateObject(schema: SchemaObject, spec: OpenAPISpec, indent: number, visited: Set<string>): string {
   const props = schema.properties;
   if (!props || Object.keys(props).length === 0) {
-    return `z.record(z.unknown()).readonly()`;
+    return `z.record(z.string(), z.unknown()).readonly()`;
   }
   const required = Array.isArray(schema.required) ? schema.required : [];
-  const lines = [];
+  const lines: string[] = [];
   for (const [key, rawPropSchema] of Object.entries(props)) {
     const propSchema = resolveSchema(rawPropSchema, spec, new Set(visited));
     const effectiveSchema = propSchema ?? {};
@@ -102,19 +153,19 @@ function generateObject(schema, spec, indent, visited) {
   return `z.object({\n${lines.join(',\n')},\n${ind(indent)}}).readonly()`;
 }
 
-function generateArray(schema, spec, indent, visited) {
+function generateArray(schema: SchemaObject, spec: OpenAPISpec, indent: number, visited: Set<string>): string {
   if (!schema.items) return `z.array(z.unknown()).readonly()`;
   const inner = generateZodCode(schema.items, spec, indent, new Set(visited));
   return `z.array(${inner}).readonly()`;
 }
 
-function hasRealSchema(member) {
+function hasRealSchema(member: SchemaObject): boolean {
   if (!member || typeof member !== 'object') return false;
   const keys = Object.keys(member).filter(k => k !== 'description' && !k.startsWith('x-'));
   return keys.length > 0;
 }
 
-function generateAllOf(members, spec, indent, visited) {
+function generateAllOf(members: SchemaObject[], spec: OpenAPISpec, indent: number, visited: Set<string>): string {
   const realMembers = members.filter(hasRealSchema);
   if (realMembers.length === 0) return `z.unknown()`;
 
@@ -128,13 +179,13 @@ function generateAllOf(members, spec, indent, visited) {
   );
 
   if (allObjects) {
-    const mergedProps = {};
-    const mergedRequired = [];
+    const mergedProps: Record<string, SchemaObject> = {};
+    const mergedRequired: string[] = [];
     for (const m of resolved) {
       Object.assign(mergedProps, m.properties ?? {});
       if (Array.isArray(m.required)) mergedRequired.push(...m.required);
     }
-    const merged = {
+    const merged: SchemaObject = {
       type: 'object',
       properties: mergedProps,
       required: [...new Set(mergedRequired)],
@@ -151,13 +202,13 @@ function generateAllOf(members, spec, indent, visited) {
   return result;
 }
 
-function generateUnion(members, spec, indent, visited) {
+function generateUnion(members: SchemaObject[], spec: OpenAPISpec, indent: number, visited: Set<string>): string {
   const exprs = members.map(m => generateZodCode(m, spec, indent, new Set(visited)));
   if (exprs.length === 1) return exprs[0];
   return `z.union([${exprs.join(', ')}])`;
 }
 
-export function generateZodCode(schema, spec, indent = 0, visited = new Set()) {
+export function generateZodCode(schema: SchemaObject, spec: OpenAPISpec, indent = 0, visited = new Set<string>()): string {
   if (!schema || typeof schema !== 'object') return `z.unknown()`;
 
   if (schema.$ref) {
@@ -227,15 +278,15 @@ export function generateZodCode(schema, spec, indent = 0, visited = new Set()) {
   return `z.unknown()`;
 }
 
-export function toPascalCase(str) {
+export function toPascalCase(str: string): string {
   return str
-    .replace(/[^a-zA-Z0-9]+(.)/g, (_, c) => c.toUpperCase())
-    .replace(/^(.)/, c => c.toUpperCase());
+    .replace(/[^a-zA-Z0-9]+(.)/g, (_, c: string) => c.toUpperCase())
+    .replace(/^(.)/, (c: string) => c.toUpperCase());
 }
 
-export function deriveSchemaName(operation, method, apiPath) {
+export function deriveSchemaName(operation: OperationObject, method: string, apiPath: string): string {
   if (operation.operationId) {
-    const cleaned = operation.operationId.replace(/[^a-zA-Z0-9]+(.)/g, (_, c) => c.toUpperCase());
+    const cleaned = operation.operationId.replace(/[^a-zA-Z0-9]+(.)/g, (_, c: string) => c.toUpperCase());
     return toPascalCase(cleaned) + 'Schema';
   }
   const segments = apiPath
@@ -245,7 +296,7 @@ export function deriveSchemaName(operation, method, apiPath) {
   return toPascalCase(method) + segments.join('') + 'Schema';
 }
 
-export function extractSuccessSchema(operation, spec) {
+export function extractSuccessSchema(operation: OperationObject, spec: OpenAPISpec): SchemaObject | null {
   const responses = operation.responses ?? {};
   const successKeys = Object.keys(responses)
     .filter(k => {
@@ -256,10 +307,10 @@ export function extractSuccessSchema(operation, spec) {
 
   if (successKeys.length === 0) return null;
 
-  let response = responses[successKeys[0]];
+  let response: ResponseObject | null = responses[successKeys[0]];
 
   if (response && response.$ref) {
-    response = resolveRef(response.$ref, spec);
+    response = resolveRef(response.$ref, spec) as ResponseObject | null;
   }
 
   if (!response) return null;
@@ -274,28 +325,28 @@ export function extractSuccessSchema(operation, spec) {
     response.content?.['*/*']?.schema ??
     null;
 
-  return schema;
+  return schema ?? null;
 }
 
-export function expandPath(p) {
+export function expandPath(p: string): string {
   if (p.startsWith('~')) return path.join(os.homedir(), p.slice(1));
   return p;
 }
 
-export function buildAndWrite(outputPath, schemaName, zodExpr) {
+export function buildAndWrite(outputPath: string, schemaName: string, zodExpr: string): void {
   const absPath = path.resolve(expandPath(outputPath));
   fs.mkdirSync(path.dirname(absPath), { recursive: true });
 
   const importLine = `import { z } from 'zod';`;
   const exportLine = `export const ${schemaName} = ${zodExpr};`;
 
-  let content;
+  let content: string;
   if (fs.existsSync(absPath)) {
-    let existing;
+    let existing: string;
     try {
       existing = fs.readFileSync(absPath, 'utf8');
     } catch (e) {
-      throw new Error(`Cannot read existing file at ${absPath}: ${e.message}`);
+      throw new Error(`Cannot read existing file at ${absPath}: ${(e as Error).message}`);
     }
 
     const exportPattern = new RegExp(

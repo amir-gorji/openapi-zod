@@ -2,6 +2,10 @@
 
 Point at a spec, pick an endpoint, get a correct Zod v4 schema on disk. No hallucinations.
 
+<video src="assets/how-it-works.mp4" controls width="100%"></video>
+
+*Recorded with a half-full context window on a large project, using a weaker model — the agent is already under pressure.*
+
 ## Why this exists
 
 LLMs infer Zod schemas incorrectly — wrong field names, wrong nesting, subtle type bugs that only surface at runtime. This tool bypasses the model entirely for codegen: schema generation is deterministic, spec-driven, and written directly to disk. The LLM only acts as an orchestrator; it never touches the schema content.
@@ -16,6 +20,31 @@ LLMs infer Zod schemas incorrectly — wrong field names, wrong nesting, subtle 
 
   Many users also paste the raw OpenAPI JSON directly into the chat — a common spec runs 5,000–20,000 input tokens on its own. Large JSON input *plus* large schema output can overwhelm the context window, pushing the model toward incorrect field names, wrong nesting, or missed fields. This tool eliminates both sides of that cost.
 
+## Local Usage
+
+Clone the repo and build:
+
+```bash
+git clone https://github.com/amir-gorji/openapi-zod.git
+cd openapi-zod
+npm install
+npm run build
+```
+
+Then use directly via `node`:
+
+```bash
+# CLI
+node dist/index.js --url https://petstore3.swagger.io/api/v3/openapi.json --api 6 --output ~/schemas/pet.ts
+
+# MCP server (point your client at the local binary)
+node dist/mcp.js
+```
+
+For MCP config, replace `"npx", "openapi-zod-mcp"` with `"node", "/absolute/path/to/openapi-zod/dist/mcp.js"`.
+
+---
+
 ## MCP Usage (recommended)
 
 The MCP server integrates directly with Claude Desktop, VS Code Copilot, and any MCP-compatible client. The LLM calls `list_endpoints` to browse the spec, then `generate_schema` to write the file. The schema never passes through the LLM token stream.
@@ -29,8 +58,7 @@ The MCP server integrates directly with Claude Desktop, VS Code Copilot, and any
     "openapi-zod": {
       "type": "stdio",
       "command": "npx",
-      "args": ["openapi-zod-mcp"],
-      "cwd": "/path/to/openapi-zod"
+      "args": ["openapi-zod-mcp"]
     }
   }
 }
@@ -42,8 +70,7 @@ The MCP server integrates directly with Claude Desktop, VS Code Copilot, and any
   "mcpServers": {
     "openapi-zod": {
       "command": "npx",
-      "args": ["openapi-zod-mcp"],
-      "cwd": "/path/to/openapi-zod"
+      "args": ["openapi-zod-mcp"]
     }
   }
 }
@@ -59,7 +86,7 @@ The MCP server integrates directly with Claude Desktop, VS Code Copilot, and any
 ## CLI Usage
 
 ```bash
-node index.js --url https://petstore3.swagger.io/api/v3/openapi.json --api 6 --output ~/schemas/pet.ts
+npx openapi-zod --url https://petstore3.swagger.io/api/v3/openapi.json --api 6 --output ~/schemas/pet.ts
 ```
 
 All flags are optional — omit any to be prompted interactively.
@@ -97,6 +124,15 @@ export const GetPetByIdSchema = z.object({
 ## What it handles
 
 `$ref` chains · `allOf` merging · `anyOf`/`oneOf` unions · enums · nested objects & arrays · format hints (`datetime`, `uuid`, `email`, `url`) · circular refs
+
+## Building
+
+```bash
+npm run build      # typecheck + minified dist/
+npm run typecheck  # type-check only
+```
+
+Source is TypeScript in `src/`. Compiled output goes to `dist/`.
 
 ## Requirements
 

@@ -3,13 +3,31 @@
   "version": "1.0.0",
   "type": "module",
   "bin": {
-    "openapi-zod": "./index.js",
-    "openapi-zod-mcp": "./mcp.js"
+    "openapi-zod": "./dist/index.js",
+    "openapi-zod-mcp": "./dist/mcp.js"
+  },
+  "exports": {
+    ".": "./dist/core.js",
+    "./core": "./dist/core.js"
+  },
+  "types": "./dist/core.d.ts",
+  "files": [
+    "dist/"
+  ],
+  "scripts": {
+    "build": "tsc --noEmit && node scripts/build.mjs && tsc --emitDeclarationOnly",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1",
     "commander": "^12",
     "inquirer": "^9",
     "zod": "^4"
+  },
+  "devDependencies": {
+    "@types/inquirer": "^9.0.9",
+    "@types/node": "^25.5.0",
+    "esbuild": "^0.27.4",
+    "typescript": "^5.9.3"
   }
 }

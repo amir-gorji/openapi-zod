@@ -1,4 +1,3 @@
-#!/usr/bin/env node
 import { Command } from 'commander';
 import inquirer from 'inquirer';
 import path from 'path';
@@ -13,7 +12,7 @@ if (major < 18) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-async function main() {
+async function main(): Promise<void> {
   const program = new Command();
   program
     .option('--url <url>', 'OpenAPI JSON URL')
@@ -21,7 +20,7 @@ async function main() {
     .option('--output <path>', 'Output .ts file path')
     .parse();
 
-  const opts = program.opts();
+  const opts = program.opts<{ url?: string; api?: string; output?: string }>();
 
   const url = opts.url
     ? opts.url
@@ -40,7 +39,7 @@ async function main() {
   );
   console.log();
 
-  let apiNum;
+  let apiNum: number;
   if (opts.api) {
     apiNum = parseInt(opts.api);
   } else {
@@ -79,6 +78,6 @@ async function main() {
 }
 
 main().catch(e => {
-  console.error(`Error: ${e.message}`);
+  console.error(`Error: ${(e as Error).message}`);
   process.exit(1);
 });
